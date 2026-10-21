@@ -50,7 +50,7 @@ site/            The Webflow export. The only directory served.
   js/form-handler.js   posts the contact form to /api/lead
 worker/
   index.js       lead endpoint; everything else falls through to site/
-  test.mjs       49 assertions, no dependencies
+  test.mjs       56 assertions, no dependencies
 wrangler.jsonc   bindings and deploy config
 ```
 
@@ -176,13 +176,23 @@ against no quota.
 ### 5. Telegram (optional)
 
 ```sh
-npx wrangler secret put TELEGRAM_BOT_TOKEN   # @BotFather → /newbot
-npx wrangler secret put TELEGRAM_CHAT_IDS    # comma separated
+npx wrangler secret put TELEGRAM_BOT_TOKEN   # @PropNewzMSbot's token
 ```
 
-**Open the bot and press Start first.** Telegram forbids a bot from messaging
-anyone who has not contacted it; skip this and every send returns *chat not
-found*. Read the id from `api.telegram.org/bot<TOKEN>/getUpdates`.
+That is all the main bot needs. Like every other Bangalore microsite, it posts
+each lead to this project's zone group (North Bangalore) and to the two All
+Bangalore groups; their ids are `TELEGRAM_ZONE_CHATS` and
+`TELEGRAM_ALL_BANGALORE_CHATS` in `worker/index.js`, and the zone is
+`SHEET_PROJECT.zone`. `TELEGRAM_CHAT_IDS` is not read for the main bot. The
+token must be @PropNewzMSbot's, since that is the bot already in those groups.
+
+A `_2` or `_3` bot posts only to its own `TELEGRAM_CHAT_IDS_2` / `_3`.
+**Open such a bot and press Start first.** Telegram forbids a bot from
+messaging anyone who has not contacted it; skip this and every send returns
+*chat not found*. Read the id from `api.telegram.org/bot<TOKEN>/getUpdates`.
+
+`/api/lead/status?check=telegram` checks, without posting anything, that each
+bot's token works and that it can post in each of its groups.
 
 Always choose **Secret**, never a dashboard *Text* variable - plain-text
 variables are owned by `wrangler.jsonc` and are wiped by the next deploy.
@@ -201,7 +211,7 @@ account, which holds them and writes the row. `/api/lead/status` reports
 The row's Page URL column is the full URL (`https://sobha-hennur.info/price`),
 which is how the shared sheet tells this site from the others. Every row also
 names the project, the same whatever page or form the lead came from: Project
-Name `Sobha Hennur`, City `Bangalore`, Project Zone `East Bangalore`, Project
+Name `Sobha Hennur`, City `Bangalore`, Project Zone `North Bangalore`, Project
 Status `Pre Launch`, Project Type `1, 2, 3 & 4 BHK Apartments` and Project Location
 `Hennur Road` (`SHEET_PROJECT` in `worker/index.js`). Lead City is the visitor's
 city, as Cloudflare places them from their IP address: a guide, not an
@@ -218,7 +228,7 @@ node worker/sheet.test.mjs   # the sheet channel, no account needed
 ## Verifying
 
 ```sh
-node worker/test.mjs        # 49 assertions, no account needed
+node worker/test.mjs        # 56 assertions, no account needed
 ```
 
 After a deploy, through the edge cache - `cf-cache-status: HIT` will otherwise
@@ -239,7 +249,7 @@ Then read the logs with `npx wrangler tail`. Every outcome is logged:
 | `lead stored …` | saved to KV - always first |
 | `email not configured; no recipient set` | `LEAD_EMAIL_TO` unset |
 | `email send failed … not verified` | destination address never verified |
-| `telegram config incomplete` | token without chat ids, or the reverse |
+| `telegram config incomplete` | a `_2`/`_3` token without chat ids, or the reverse |
 | `… status=400 chat not found` | wrong chat id, or Start never pressed |
 | `… status=401` | token wrong or revoked |
 
@@ -298,7 +308,8 @@ re-exporting from Webflow, re-add its `<script>` line along with
 against. What is left once the domain is connected (its phases 6 to 8):
 
 1. Redirect `www.sobha-hennur.info` to `sobha-hennur.info` (a Cloudflare Redirect Rule).
-2. Telegram: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_IDS` as Worker secrets (below).
+2. Telegram: `TELEGRAM_BOT_TOKEN` (@PropNewzMSbot) as a Worker secret (below); leads go to the
+   zone group and both All Bangalore groups. Confirm with `/api/lead/status?check=telegram`.
 3. Email Routing: verify the `LEAD_EMAIL_TO` destination address.
 4. Google Search Console, once SSL is active: add the domain property, add the HTML
    tag and the HTML file to the site, then Verify.
@@ -354,19 +365,19 @@ icon are drawn from the same two values.
 
 ## Telegram notifications
 
-The Worker can post every lead to Telegram as well as e-mail. Nothing is
-configured for this project yet. To switch it on, create a bot with
-@BotFather, get the chat id(s) you want it to post to, and set both as
-Worker secrets - not as vars in `wrangler.jsonc`, which would put the token
-in the repository:
+The Worker posts every lead to Telegram as well as e-mail, the same way as
+the other Bangalore microsites: the main bot (@PropNewzMSbot) sends it to the
+North Bangalore group and the two All Bangalore groups. The group ids are in
+`worker/index.js`; only the bot's token is a secret, set as a Worker secret
+rather than a var in `wrangler.jsonc`, which would put it in the repository:
 
 ```sh
 # the argument is the NAME; the value is typed at the prompt
 npx wrangler secret put TELEGRAM_BOT_TOKEN
-npx wrangler secret put TELEGRAM_CHAT_IDS   # comma-separated
 ```
 
-For local testing put both in `.dev.vars`, which is already git-ignored.
+For local testing put it in `.dev.vars`, which is already git-ignored.
 A second and third bot can be added as `TELEGRAM_BOT_TOKEN_2` /
-`TELEGRAM_CHAT_IDS_2` and `_3`; the Worker posts to each configured pair.
-Leads still reach e-mail, KV and the Google Sheet whether or not Telegram is set up.
+`TELEGRAM_CHAT_IDS_2` and `_3`; each posts to its own chats. Every message has
+a `Zone:` line, from the forms' hidden `Zone` field. Leads still reach e-mail,
+KV and the Google Sheet whether or not Telegram is set up.

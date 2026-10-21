@@ -19,8 +19,9 @@
  * Cloudflare dashboard -> Storage & Databases -> KV -> leads.
  *
  * A copy is sent onward: by email when LEAD_EMAIL_TO is set and either the
- * Cloudflare send binding or a Resend key is available, and to Telegram for
- * each configured bot (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_IDS, then _2, _3).
+ * Cloudflare send binding or a Resend key is available, and to Telegram: the
+ * main bot (TELEGRAM_BOT_TOKEN) posts to this project's zone group and the
+ * two All Bangalore groups, and a _2 or _3 bot to its own TELEGRAM_CHAT_IDS.
  * A third copy goes to the shared "PNZ MS Leads" Google Sheet, through the
  * LEAD_SHEET service binding to the assetz-mizu-ki Worker.
  * Each channel is independent and entirely optional; unset, it is skipped.
@@ -40,7 +41,7 @@ const MAX_BODY_BYTES = 4096;
 
 /* Field length caps, applied after trimming. The Webflow textarea caps the
    message at 5000, but a lead that long is a paste, not an enquiry. */
-const LIMITS = { name: 80, email: 120, message: 2000, page: 200, project: 120, lead_source: 120 };
+const LIMITS = { name: 80, email: 120, message: 2000, page: 200, project: 120, lead_source: 120, zone: 60 };
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -94,7 +95,11 @@ function validate(input) {
        an older cached page, or a form that does not declare it, still submits.
        Never validated against - a missing hidden field must not cost a real
        enquiry - but cleaned and capped like every other caller-supplied string. */
-    lead_source: clean(input.lead_source, LIMITS.lead_source)
+    lead_source: clean(input.lead_source, LIMITS.lead_source),
+    /* The project's zone, from the form's hidden Zone field. A page cached
+       before the field existed sends none, so the site's own zone stands in
+       and every lead still says which zone it belongs to. */
+    zone: clean(input.zone, LIMITS.zone) || SHEET_PROJECT.zone
   };
   if (lead.name.length < 2) return { error: "Please enter your name." };
   if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(lead.email)) return { error: "Please check the email address." };
@@ -145,6 +150,7 @@ function formatLead(record) {
     "",
     "Page:    " + (record.page || "/"),
     "Project: " + (record.project || "website"),
+    record.zone ? "Zone:    " + record.zone : "",
     record.lead_source ? "Source:  " + record.lead_source : "",
     "Time:    " + record.received,
     record.country ? "Country: " + record.country : ""
@@ -152,21 +158,39 @@ function formatLead(record) {
   return lines.filter(Boolean).join("\n").slice(0, TELEGRAM_MAX);
 }
 
-/* Each bot is an independent token with its own chat list, because a chat id
-   is only addressable by a bot that the chat has actually started. */
+/* The Bangalore zone groups every microsite's main bot posts to, keyed by the
+   project's zone, plus the two groups that receive every Bangalore lead. The
+   same ids as the other Bangalore microsites; a chat id is not a secret, the
+   bot token that can post to it is. */
+const TELEGRAM_ZONE_CHATS = {
+  "North Bangalore": "-5141074270",
+  "South Bangalore": "-5339561948",
+  "East Bangalore": "-5157783892",
+  "West Bangalore": "-5494009393" /* Central & West */
+};
+const TELEGRAM_ALL_BANGALORE_CHATS = ["-5486402123", "-5268923231"];
+
+function zoneChats() {
+  return [TELEGRAM_ZONE_CHATS[SHEET_PROJECT.zone], ...TELEGRAM_ALL_BANGALORE_CHATS].filter(Boolean);
+}
+
+/* Each further bot is an independent token with its own chat list, because a
+   chat id is only addressable by a bot that the chat has actually started. */
 const BOT_SUFFIXES = ["", "_2", "_3"];
 
 /**
- * Reads every configured bot from the environment. A bot needs both a token
- * and at least one chat id to count as configured; a half-set pair is skipped
- * rather than silently sending nowhere.
+ * Reads every configured bot from the environment. The main bot needs only
+ * its token and posts to this project's zone groups; a _2 or _3 bot needs both
+ * a token and at least one chat id to count as configured. A half-set pair is
+ * skipped rather than silently sending nowhere.
  */
 function telegramTargets(env) {
   const targets = [];
   for (const suffix of BOT_SUFFIXES) {
     const token = env[`TELEGRAM_BOT_TOKEN${suffix}`];
-    const chats = String(env[`TELEGRAM_CHAT_IDS${suffix}`] || "")
-      .split(",").map((c) => c.trim()).filter(Boolean);
+    const chats = suffix
+      ? String(env[`TELEGRAM_CHAT_IDS${suffix}`] || "").split(",").map((c) => c.trim()).filter(Boolean)
+      : (token ? zoneChats() : []);
     if (token && chats.length) targets.push({ suffix: suffix || "_1", token, chats });
     else if (token || chats.length) {
       console.error(`telegram config incomplete for TELEGRAM_*${suffix || ""}; needs both token and chat ids`);
@@ -192,29 +216,118 @@ async function notifyTelegram(env, record) {
   for (const { suffix, token, chats } of targets) {
     for (const chat_id of chats) {
       sends.push((async () => {
-        try {
-          const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ chat_id, text, disable_web_page_preview: true }),
-            /* A hung Telegram call must not hold the invocation open. */
-            signal: AbortSignal.timeout(5000)
-          });
-          if (!res.ok) {
-            /* description names the real cause: bad token, chat not started,
-               kicked. The token itself is never logged. */
-            const detail = await res.text().catch(() => "");
-            console.error(`telegram send failed bot=${suffix} chat=${chat_id} status=${res.status} ${detail.slice(0, 200)}`);
-            return;
-          }
-          console.log(`telegram sent bot=${suffix} chat=${chat_id}`);
-        } catch (err) {
-          console.error(`telegram send threw bot=${suffix} chat=${chat_id} ${err && err.message}`);
+        let sent = await telegramCall(token, "sendMessage", { chat_id, text, disable_web_page_preview: true });
+        /* A group upgraded to a supergroup gets a new id; follow it once so
+           the lead still lands, and log it so the map above gets updated. */
+        if (!sent.ok && sent.migrateTo) {
+          console.error(`telegram chat=${chat_id} is now chat=${sent.migrateTo}; update TELEGRAM_ZONE_CHATS`);
+          sent = await telegramCall(token, "sendMessage", { chat_id: sent.migrateTo, text, disable_web_page_preview: true });
         }
+        if (!sent.ok) {
+          /* description names the real cause: bad token, chat not started,
+             kicked. The token itself is never logged. */
+          console.error(`telegram send failed bot=${suffix} chat=${chat_id} status=${sent.status} ${sent.description}`);
+          return;
+        }
+        console.log(`telegram sent bot=${suffix} chat=${chat_id}`);
       })());
     }
   }
   await Promise.all(sends);
+}
+
+/**
+ * One Bot API call. Never throws: a network error or timeout comes back as
+ * { ok: false } with the reason in description.
+ */
+async function telegramCall(token, method, payload) {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      /* A hung Telegram call must not hold the invocation open. */
+      signal: AbortSignal.timeout(5000)
+    });
+    const body = await res.json().catch(() => ({}));
+    const migrated = body.parameters && body.parameters.migrate_to_chat_id;
+    return {
+      ok: res.ok && body.ok !== false,
+      status: res.status,
+      description: String(body.description || (res.ok ? "" : `HTTP ${res.status}`)).slice(0, 200),
+      result: body.result,
+      migrateTo: migrated ? String(migrated) : ""
+    };
+  } catch (err) {
+    return { ok: false, status: 0, description: String((err && err.message) || err).slice(0, 200), result: undefined, migrateTo: "" };
+  }
+}
+
+/* Names a chat in the self-check without printing its id. */
+function chatLabel(suffix, chat, i) {
+  const first = suffix === "_1";
+  if (first && chat === TELEGRAM_ZONE_CHATS[SHEET_PROJECT.zone]) return `${SHEET_PROJECT.zone} group`;
+  const common = first ? TELEGRAM_ALL_BANGALORE_CHATS.indexOf(chat) : -1;
+  return common >= 0 ? `All Bangalore group ${common + 1}` : `chat ${i + 1}`;
+}
+
+/**
+ * Whether the bot could post in a chat right now, read with getChat and
+ * getChatMember so nothing is sent to the group.
+ */
+async function canPost(token, botId, chat_id) {
+  const [chat, member] = await Promise.all([
+    telegramCall(token, "getChat", { chat_id }),
+    telegramCall(token, "getChatMember", { chat_id, user_id: botId })
+  ]);
+  if (!chat.ok) return { report: { ok: false, error: chat.description }, migrateTo: chat.migrateTo || member.migrateTo };
+  const type = (chat.result && chat.result.type) || "";
+  if (!member.ok) return { report: { ok: false, type, error: member.description }, migrateTo: member.migrateTo };
+  const m = member.result || {};
+  const perms = (chat.result && chat.result.permissions) || {};
+  let ok = false, error = "";
+  if (m.status === "creator" || m.status === "administrator") ok = true;
+  else if (m.status === "member") {
+    ok = perms.can_send_messages !== false;
+    if (!ok) error = "members may not send messages in this group";
+  } else if (m.status === "restricted") {
+    ok = m.is_member !== false && m.can_send_messages !== false;
+    if (!ok) error = "the bot is restricted from sending messages here";
+  } else error = m.status === "kicked" ? "the bot was removed from this group" : "the bot is not a member of this group";
+  const report = { ok, type, membership: m.status || "" };
+  if (error) report.error = error;
+  return { report, migrateTo: "" };
+}
+
+/**
+ * GET /api/lead/status?check=telegram: for every configured bot, whether its
+ * token works and whether it can post in each of its chats. Bot usernames and
+ * chat labels only; no token or chat id is returned. Rate limited, because
+ * each check makes several Bot API calls.
+ */
+async function telegramCheck(request, env) {
+  const ip = request.headers.get("cf-connecting-ip") || "";
+  if (ip && await rateLimited(env, `telegram-check:${ip}`)) {
+    return json(429, { ok: false, error: "Too many checks. Please try again in a minute." });
+  }
+  const bots = await Promise.all(telegramTargets(env).map(async ({ suffix, token, chats }) => {
+    const bot = { bot: `TELEGRAM_BOT_TOKEN${suffix === "_1" ? "" : suffix}` };
+    const me = await telegramCall(token, "getMe", {});
+    if (!me.ok || !me.result) return Object.assign(bot, { ok: false, error: me.description || "getMe failed", chats: [] });
+    bot.username = me.result.username ? `@${me.result.username}` : "";
+    bot.chats = await Promise.all(chats.map(async (chat, i) => {
+      const entry = { chat: chatLabel(suffix, chat, i) };
+      const first = await canPost(token, me.result.id, chat);
+      if (!first.migrateTo) return Object.assign(entry, first.report);
+      const moved = await canPost(token, me.result.id, first.migrateTo);
+      return Object.assign(entry, moved.report, { upgradedTo: first.migrateTo });
+    }));
+    bot.ok = bot.chats.every((c) => c.ok);
+    return bot;
+  }));
+  const delivering = bots.length > 0 && bots.every((b) => b.ok);
+  console.log(`telegram self-check bots=${bots.length} delivering=${delivering}`);
+  return json(200, { ok: true, telegram: { configured: bots.length > 0, delivering, bots } });
 }
 
 /**
@@ -349,7 +462,11 @@ function countryName(code) {
 const SHEET_PROJECT = {
   name: "Sobha Hennur",
   city: "Bangalore",
-  zone: "East Bangalore",
+  /* One of the shared sheet's zone tabs (North, South, East, Central & West
+     Bangalore) and a key of TELEGRAM_ZONE_CHATS, so the row is copied to the
+     North tab and the lead reaches the North group. Hennur Road is North, as
+     on the Assetz Mizu Ki, CKPC Hennur Road and earlier Sobha Hennur sites. */
+  zone: "North Bangalore",
   status: "Pre Launch",
   type: "1, 2, 3 & 4 BHK Apartments",
   location: "Hennur Road"
@@ -490,7 +607,9 @@ async function handleLead(request, env, ctx) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.pathname === "/api/lead/status") return statusReport(env);
+    if (url.pathname === "/api/lead/status") {
+      return url.searchParams.get("check") === "telegram" ? telegramCheck(request, env) : statusReport(env);
+    }
     if (url.pathname === "/api/lead") return handleLead(request, env, ctx);
     return env.ASSETS.fetch(request);
   }

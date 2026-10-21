@@ -25,9 +25,10 @@
  * No changes to the form markup are needed. Every Webflow form on the page is
  * picked up automatically, so this works on an untouched export.
  *
- * Two hidden inputs ARE read from the markup, so every lead is tracked:
- * "Project Name" (falls back to PROJECT below) and lead_source (PNZ MS Lead).
- * Forms without them submit exactly as before.
+ * Three hidden inputs ARE read from the markup, so every lead is tracked:
+ * "Project Name" (falls back to PROJECT below), Zone (falls back to ZONE
+ * below) and lead_source (PNZ MS Lead). Forms without them submit exactly as
+ * before.
  *
  * Password pages, search forms, and anything marked data-skip-email are left
  * alone. To exclude a form, add data-skip-email to it.
@@ -41,6 +42,10 @@
 
   /* Recorded with every lead so one inbox can serve several projects. */
   var PROJECT = "Sobha Hennur";
+
+  /* The project's zone, as the shared lead sheet's Project Zone column
+   * names it. */
+  var ZONE = "North Bangalore";
 
   /* Webflow wraps every form in a .w-form div that also holds the success and
    * error messages, which makes it the reliable way to find forms in an export
@@ -105,6 +110,8 @@
       message: valueOf(form, 'Message'),
       /* Hidden field in the markup (name="Project Name"). */
       project: valueOf(form, 'Project Name') || PROJECT,
+      /* Hidden field in the markup (name="Zone"). */
+      zone: valueOf(form, 'Zone') || ZONE,
       /* Hidden field in the markup (name="lead_source"). Read from the form
        * rather than hardcoded here, so a landing page or a campaign variant
        * can carry its own value without touching this file. Absent on a form

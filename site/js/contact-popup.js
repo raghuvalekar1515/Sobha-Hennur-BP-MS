@@ -19,8 +19,8 @@
  * Submissions go to the same POST /api/lead as the page's contact form, with
  * the same fields form-handler.js sends. The Worker requires a message, so a
  * fixed one is sent that also says where the lead came from. The form
- * carries the same hidden fields as the page's: Project Name and lead_source
- * (PNZ MS Lead).
+ * carries the same hidden fields as the page's: Project Name, Zone and
+ * lead_source (PNZ MS Lead).
  *
  * Closes on the X button, the Esc key or a click outside. On a phone it is a
  * compact sheet at the foot of the screen, not a full-screen cover.
@@ -36,6 +36,7 @@
 
   var ENDPOINT = '/api/lead';
   var PROJECT = "Sobha Hennur";
+  var ZONE = "North Bangalore";
   var LEAD_SOURCE = "PNZ MS Lead";
   var MESSAGE = 'Asked for a call back through the website pop-up.';
   /* The checklist allows 5 to 10 seconds. */
@@ -89,6 +90,7 @@
     '<div class="cpop_body">' +
       '<form class="cpop_form" novalidate>' +
         '<input type="hidden" name="Project Name">' +
+        '<input type="hidden" name="Zone">' +
         '<input type="hidden" name="lead_source">' +
         '<div class="cpop_field"><label for="cpop-name">Your name</label>' +
           '<input id="cpop-name" name="name" type="text" autocomplete="name" required minlength="2" maxlength="80"></div>' +
@@ -131,6 +133,7 @@
     /* Attribute the lead the way this page's own form does, where it has one. */
     var pageSource = document.querySelector('form input[name="lead_source"]');
     var pageProject = document.querySelector('form input[name="Project Name"]');
+    var pageZone = document.querySelector('form input[name="Zone"]');
 
     var style = document.createElement('style');
     style.textContent = CSS;
@@ -143,6 +146,7 @@
     dialog.querySelector('.cpop_title').textContent = 'Enquire about ' + PROJECT;
     dialog.querySelector('[name="lead_source"]').value = (pageSource && pageSource.value) || LEAD_SOURCE;
     dialog.querySelector('[name="Project Name"]').value = (pageProject && pageProject.value) || PROJECT;
+    dialog.querySelector('[name="Zone"]').value = (pageZone && pageZone.value) || ZONE;
     document.body.appendChild(dialog);
 
     form = dialog.querySelector('form');
@@ -220,6 +224,7 @@
       phone: form.elements.phone.value,
       message: MESSAGE,
       project: form.elements['Project Name'].value || PROJECT,
+      zone: form.elements.Zone.value || ZONE,
       lead_source: form.elements.lead_source.value,
       page: window.location.pathname,
       company: ''

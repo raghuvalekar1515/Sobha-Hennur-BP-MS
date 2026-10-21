@@ -153,9 +153,11 @@ console.log('\n--- rate limiting ---');
 console.log('\n--- notification ---');
 {
   store.clear(); seen.clear(); outbound = [];
-  const tgEnv = { ...env, TELEGRAM_BOT_TOKEN: 'TEST:TOKEN', TELEGRAM_CHAT_IDS: '111, 222' };
+  const tgEnv = { ...env, TELEGRAM_BOT_TOKEN: 'TEST:TOKEN' };
   await send(valid, tgEnv);
-  check('one Telegram send per chat', outbound.length === 2, `${outbound.length} sends`);
+  const chatIds = outbound.map(o => o.body.chat_id).sort();
+  check('main bot posts to the zone group and both All Bangalore groups',
+    JSON.stringify(chatIds) === JSON.stringify(['-5141074270', '-5268923231', '-5486402123'].sort()), chatIds.join(','));
   const text = outbound[0]?.body?.text || '';
   check('plain text, no parse_mode', !('parse_mode' in (outbound[0]?.body || {})));
   check('message carries the lead', text.includes('Asha Rao') && text.includes('9876543210')
@@ -251,25 +253,64 @@ console.log('\n--- status endpoint ---');
     LEAD_EMAIL_FROM: 'no-reply@sobha-hennur.info',
     LEAD_EMAIL: { send: async () => ({}) },
     TELEGRAM_BOT_TOKEN: 'T:OK',
-    TELEGRAM_CHAT_IDS: '111,222'
+    TELEGRAM_BOT_TOKEN_2: 'T2:OK',
+    TELEGRAM_CHAT_IDS_2: '111,222'
   }, {});
   const s = await res.json();
   check('reports storage and channels', s.ok && s.storage === true
     && s.email.configured === true && s.email.transport === 'cloudflare'
-    && s.email.recipientsSet === 1 && s.telegram.chats === 2);
+    && s.email.recipientsSet === 1 && s.telegram.bots === 2 && s.telegram.chats === 5);
 
   /* Must never leak who alerting reaches. */
   const raw = JSON.stringify(s);
   check('leaks no address, token or chat id',
-    !raw.includes('raghuvalekar1515') && !raw.includes('T:OK') && !raw.includes('111'));
+    !raw.includes('raghuvalekar1515') && !raw.includes('T:OK') && !raw.includes('111')
+    && !raw.includes('-5'));
 }
 
 console.log('\n--- half-configured Telegram ---');
 {
   const res = await worker.fetch(new Request('https://x/api/lead/status'),
-    { ...env, TELEGRAM_BOT_TOKEN: 'T:OK' }, {});
+    { ...env, TELEGRAM_BOT_TOKEN_2: 'T:OK' }, {});
   const s = await res.json();
-  check('token without chat ids counts as unconfigured', s.telegram.configured === false);
+  check('a _2 token without chat ids counts as unconfigured', s.telegram.configured === false);
+
+  const main = await (await worker.fetch(new Request('https://x/api/lead/status'),
+    { ...env, TELEGRAM_BOT_TOKEN: 'T:OK' }, {})).json();
+  check('the main token alone reaches the 3 zone chats', main.telegram.configured === true
+    && main.telegram.bots === 1 && main.telegram.chats === 3);
+}
+
+console.log('\n--- zone ---');
+{
+  const tgEnv = { ...env, TELEGRAM_BOT_TOKEN: 'TEST:TOKEN', TELEGRAM_BOT_TOKEN_2: 'T2', TELEGRAM_CHAT_IDS_2: '777' };
+
+  store.clear(); seen.clear(); outbound = [];
+  await send({ ...valid, zone: 'North Bangalore' }, tgEnv);
+  const rec = JSON.parse(store.get([...store.keys()][0]) || '{}');
+  check('zone stored from the hidden field', rec.zone === 'North Bangalore', rec.zone);
+  check('Telegram message carries the Zone line', (outbound[0]?.body?.text || '').includes('Zone:    North Bangalore'));
+  check('a _2 bot still posts to its own chats', outbound.some(o => o.url.includes('/botT2/') && o.body.chat_id === '777'));
+  check('the _2 bot is not sent to the zone groups', !outbound.some(o => o.url.includes('/botT2/') && o.body.chat_id.startsWith('-')));
+
+  /* A page cached before the Zone field existed still names the zone. */
+  store.clear(); seen.clear(); outbound = [];
+  await send(valid, tgEnv);
+  check('missing zone falls back to the site zone',
+    JSON.parse(store.get([...store.keys()][0]) || '{}').zone === 'North Bangalore');
+
+  /* A migrated group is followed once, so the lead still lands. */
+  store.clear(); seen.clear(); outbound = [];
+  const prevReply = telegramReply;
+  telegramReply = () => outbound.length <= 3 && outbound[outbound.length - 1].body.chat_id === '-5141074270'
+    ? new Response('{"ok":false,"description":"group upgraded","parameters":{"migrate_to_chat_id":-100999}}', { status: 400 })
+    : new Response('{"ok":true}', { status: 200 });
+  /* The retry happens after the first reply, so wait for the notifications. */
+  const pending = [];
+  await worker.fetch(post(valid), { ...env, TELEGRAM_BOT_TOKEN: 'TEST:TOKEN' }, { waitUntil: (w) => pending.push(w) });
+  await Promise.all(pending);
+  telegramReply = prevReply;
+  check('upgraded group is retried at its new id', outbound.some(o => String(o.body.chat_id) === '-100999'));
 }
 
 console.log('\n--- asset fall-through ---');

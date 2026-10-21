@@ -63,12 +63,16 @@
   // RESEND_API_KEY is an optional fallback for accounts without Email
   // Routing; when the send binding above is present it takes precedence.
 
-  // Telegram notification is configured entirely through encrypted secrets,
-  // so no chat id or bot token is ever committed:
-  //   npx wrangler secret put TELEGRAM_BOT_TOKEN     (from @BotFather)
-  //   npx wrangler secret put TELEGRAM_CHAT_IDS      (comma separated)
+  // Telegram notification is configured through encrypted secrets, so no bot
+  // token is ever committed. The main bot needs only its token, which must be
+  // @PropNewzMSbot's, the bot that is in the Bangalore groups:
+  //   npx wrangler secret put TELEGRAM_BOT_TOKEN
+  // It posts to the North Bangalore group and the two All Bangalore groups,
+  // whose ids are in worker/index.js (TELEGRAM_ZONE_CHATS) as on every other
+  // Bangalore microsite, so TELEGRAM_CHAT_IDS is not read for it.
   // A second and third bot use the _2 and _3 suffixes, each with its own chat
-  // list, since a chat is only addressable by a bot it has started.
+  // list (TELEGRAM_CHAT_IDS_2, _3), since a chat is only addressable by a bot
+  // it has started.
   // All are optional. Without them leads are still stored in KV; the Worker
   // simply logs that notification is not configured.
 
