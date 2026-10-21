@@ -319,6 +319,14 @@ console.log('\n--- asset fall-through ---');
   check('non-API request falls through to ASSETS', (await res.text()) === 'ASSET');
   const root = await worker.fetch(new Request('https://x/'), env, {});
   check('root falls through to ASSETS', (await root.text()) === 'ASSET');
+
+  /* Google needs the verification file itself, not the redirect that
+     auto-trailing-slash gives any .html URL. */
+  let asked = '';
+  const gsc = await worker.fetch(new Request('https://x/googlebe4d73998ad2e304.html'),
+    { ...env, ASSETS: { fetch: async (r) => { asked = new URL(r.url || r).pathname; return new Response('ASSET', { status: 200 }); } } }, {});
+  check('verification file served from its extensionless asset with a 200',
+    gsc.status === 200 && asked === '/googlebe4d73998ad2e304', asked);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

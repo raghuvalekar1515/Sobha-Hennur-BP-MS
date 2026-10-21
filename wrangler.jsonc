@@ -28,7 +28,10 @@
     // Static assets are matched before the Worker by default. /api/lead is not
     // a file on disk so it would fall through anyway, but pinning it here means
     // adding an asset at that path can never shadow the endpoint.
-    "run_worker_first": ["/api/*"]
+    // The Search Console verification file runs the Worker first too, so it is
+    // answered with the file and a 200 rather than the redirect above, which
+    // Google's verifier would not accept (worker/index.js).
+    "run_worker_first": ["/api/*", "/googlebe4d73998ad2e304.html"]
   },
 
   // Outbound email through Cloudflare Email Service. No third party account

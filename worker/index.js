@@ -604,6 +604,13 @@ async function handleLead(request, env, ctx) {
   return json(200, { ok: true });
 }
 
+/* Google Search Console's HTML verification file, site/googlebe4d73998ad2e304.html.
+   Google fetches this exact URL and expects the file itself, but the asset
+   server's "auto-trailing-slash" answers any .html URL with a redirect to the
+   extensionless one. So this path runs the Worker first (wrangler.jsonc) and
+   is served from the extensionless asset with a 200. */
+const GSC_VERIFICATION_PATH = "/googlebe4d73998ad2e304.html";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -611,6 +618,9 @@ export default {
       return url.searchParams.get("check") === "telegram" ? telegramCheck(request, env) : statusReport(env);
     }
     if (url.pathname === "/api/lead") return handleLead(request, env, ctx);
+    if (url.pathname === GSC_VERIFICATION_PATH) {
+      return env.ASSETS.fetch(new URL(GSC_VERIFICATION_PATH.replace(/\.html$/, ""), url));
+    }
     return env.ASSETS.fetch(request);
   }
 };
