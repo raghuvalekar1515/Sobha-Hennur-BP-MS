@@ -15,7 +15,7 @@
 
     // A Webflow export is flat files -- price.html, not price/index.html --
     // but every canonical URL in the markup is extensionless
-    // (https://sobha-hennur.info/price). "auto-trailing-slash" serves
+    // (https://sobhahennur.co.in/price). "auto-trailing-slash" serves
     // /price from price.html and answers /price.html with a redirect to it,
     // which is what Cloudflare Pages was doing before this migration and what
     // keeps those canonicals honest. Changing it to "none" would 404 every
@@ -38,7 +38,7 @@
   // and no API key: mail to an address already verified as an Email Routing
   // destination is free on every plan and counts against no quota.
   //
-  // Requires Email Routing enabled on sobha-hennur.info and the recipient
+  // Requires Email Routing enabled on sobhahennur.co.in and the recipient
   // verified under Email Routing -> Destination Addresses.
   //
   // The binding carries no destination_address, so the recipient below can
@@ -59,7 +59,7 @@
   //   npx wrangler secret put LEAD_EMAIL_TO
   // Set one or the other, never both, or the two definitions collide.
   "vars": {
-    "LEAD_EMAIL_FROM": "no-reply@sobha-hennur.info",
+    "LEAD_EMAIL_FROM": "no-reply@sobhahennur.co.in",
     "LEAD_EMAIL_TO": "raghuvalekar1515@gmail.com"
   },
 

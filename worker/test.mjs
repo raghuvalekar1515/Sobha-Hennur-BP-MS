@@ -168,7 +168,7 @@ console.log('\n--- notification ---');
   const mailEnv = {
     ...env,
     LEAD_EMAIL_TO: 'raghuvalekar1515@gmail.com, second@example.com',
-    LEAD_EMAIL_FROM: 'no-reply@sobha-hennur.info',
+    LEAD_EMAIL_FROM: 'no-reply@sobhahennur.co.in',
     LEAD_EMAIL: { send: async (m) => { sent.push(m); return { messageId: 'mid-1' }; } }
   };
   await send(valid, mailEnv);
@@ -180,7 +180,7 @@ console.log('\n--- notification ---');
   const throwingEnv = {
     ...env,
     LEAD_EMAIL_TO: 'x@example.com',
-    LEAD_EMAIL_FROM: 'no-reply@sobha-hennur.info',
+    LEAD_EMAIL_FROM: 'no-reply@sobhahennur.co.in',
     LEAD_EMAIL: { send: async () => { throw new Error('address not verified'); } }
   };
   const res = await send(valid, throwingEnv);
@@ -209,7 +209,7 @@ console.log('\n--- lead source (hidden field) ---');
   await send({ ...valid, lead_source: SOURCE }, {
     ...env,
     LEAD_EMAIL_TO: 'x@example.com',
-    LEAD_EMAIL_FROM: 'no-reply@sobha-hennur.info',
+    LEAD_EMAIL_FROM: 'no-reply@sobhahennur.co.in',
     LEAD_EMAIL: { send: async (m) => { sent.push(m); return { messageId: 'mid' }; } }
   });
   check('email body carries the source', (sent[0]?.text || '').includes('Source:  ' + SOURCE));
@@ -250,7 +250,7 @@ console.log('\n--- status endpoint ---');
   const res = await worker.fetch(new Request('https://x/api/lead/status'), {
     ...env,
     LEAD_EMAIL_TO: 'raghuvalekar1515@gmail.com',
-    LEAD_EMAIL_FROM: 'no-reply@sobha-hennur.info',
+    LEAD_EMAIL_FROM: 'no-reply@sobhahennur.co.in',
     LEAD_EMAIL: { send: async () => ({}) },
     TELEGRAM_BOT_TOKEN: 'T:OK',
     TELEGRAM_BOT_TOKEN_2: 'T2:OK',

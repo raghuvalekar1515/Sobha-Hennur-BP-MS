@@ -107,20 +107,20 @@ Map: https://www.google.com/maps/search/?api=1&query=13.084928%2C77.661576
 
 ## Pages
 
-- [Home](https://sobha-hennur.info/): summary, key figures and the register-interest form
-- [Overview](https://sobha-hennur.info/overview): the project highlights, water, green and township plans
-- [Floor Plans](https://sobha-hennur.info/floor-plan): the nine home types, with indicative layouts
-- [Master Plan](https://sobha-hennur.info/master-plan): the plan of residential blocks, the commercial precinct, parks and the lake edge
-- [Amenities](https://sobha-hennur.info/amenities): the clubhouse, amenity block and services within the township
-- [Location](https://sobha-hennur.info/location): the Hennur Road corridor and what is near it
-- [Price](https://sobha-hennur.info/price): home types and homes planned, with the indicative price
-- [Gallery](https://sobha-hennur.info/gallery): pictures of the towers, a home, gardens, play and the clubhouse
-- [FAQs](https://sobha-hennur.info/faqs): location, home types, price, distances, the township and the developer
-- [Contact](https://sobha-hennur.info/contact-us): register your interest
+- [Home](https://sobhahennur.co.in/): summary, key figures and the register-interest form
+- [Overview](https://sobhahennur.co.in/overview): the project highlights, water, green and township plans
+- [Floor Plans](https://sobhahennur.co.in/floor-plan): the nine home types, with indicative layouts
+- [Master Plan](https://sobhahennur.co.in/master-plan): the plan of residential blocks, the commercial precinct, parks and the lake edge
+- [Amenities](https://sobhahennur.co.in/amenities): the clubhouse, amenity block and services within the township
+- [Location](https://sobhahennur.co.in/location): the Hennur Road corridor and what is near it
+- [Price](https://sobhahennur.co.in/price): home types and homes planned, with the indicative price
+- [Gallery](https://sobhahennur.co.in/gallery): pictures of the towers, a home, gardens, play and the clubhouse
+- [FAQs](https://sobhahennur.co.in/faqs): location, home types, price, distances, the township and the developer
+- [Contact](https://sobhahennur.co.in/contact-us): register your interest
 
 ## Contact
 
-Enquiries go through the form at https://sobha-hennur.info/contact-us. No public telephone number
+Enquiries go through the form at https://sobhahennur.co.in/contact-us. No public telephone number
 is published on this website.
 
 ## Questions buyers ask
