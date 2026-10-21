@@ -52,7 +52,7 @@ const lead = {
   message: 'Please share the price list.',
   intent: 'Site visit',
   project: 'Test Project',
-  lead_source: 'PNZ MS Lead',
+  lead_source: 'BP MS Lead',
   page: '/price'
 };
 
@@ -90,7 +90,7 @@ console.log('\n--- with the binding, one row per lead ---');
   check('name, phone, email', row.name === 'Asha Rao' && row.phone === '9876543210' && row.email === 'asha@example.com',
     JSON.stringify(row));
   check('Page is the full URL on this site', row.page === 'https://site.example/price', row.page);
-  check('Source', row.source === 'PNZ MS Lead', row.source);
+  check('Source', row.source === 'BP MS Lead', row.source);
   check('Time is the instant stored with the lead', typeof row.time === 'string'
     && row.time === (rec.received || rec.receivedAt) && !Number.isNaN(Date.parse(row.time)), row.time);
   check('Country as a name', row.country === 'India', row.country);

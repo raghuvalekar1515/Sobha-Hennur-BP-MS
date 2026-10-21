@@ -27,7 +27,7 @@
  *
  * Three hidden inputs ARE read from the markup, so every lead is tracked:
  * "Project Name" (falls back to PROJECT below), Zone (falls back to ZONE
- * below) and lead_source (PNZ MS Lead). Forms without them submit exactly as
+ * below) and lead_source (BP MS Lead). Forms without them submit exactly as
  * before.
  *
  * Password pages, search forms, and anything marked data-skip-email are left

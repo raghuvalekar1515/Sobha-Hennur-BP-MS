@@ -88,7 +88,7 @@ costs a notification, never the enquiry.
 Each contact form carries two hidden fields as its first children:
 
 ```html
-<input type="hidden" name="lead_source" value="PNZ MS Lead">
+<input type="hidden" name="lead_source" value="BP MS Lead">
 <input type="hidden" name="Project Name" value="Sobha Hennur">
 ```
 
@@ -315,7 +315,7 @@ against. What is left once the domain is connected (its phases 6 to 8):
 6. Request indexing (about ten URLs a day): home, overview, FAQs, location, contact,
    then the rest.
 7. Live test: submit the contact form and the pop-up, and confirm both reach Telegram
-   and email with Project Name and Source = PNZ MS Lead.
+   and email with Project Name and Source = BP MS Lead.
 8. Add the site to the tracker sheet under Bangalore, and link it from every other
    Bangalore microsite's "Do you have other projects in Bengaluru?" list.
 

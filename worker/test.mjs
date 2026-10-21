@@ -190,7 +190,7 @@ console.log('\n--- notification ---');
 
 console.log('\n--- lead source (hidden field) ---');
 {
-  const SOURCE = 'PNZ MS Lead';
+  const SOURCE = 'BP MS Lead';
   const tgEnv = { ...env, TELEGRAM_BOT_TOKEN: 'TEST:TOKEN', TELEGRAM_CHAT_IDS: '111' };
 
   store.clear(); seen.clear(); outbound = [];

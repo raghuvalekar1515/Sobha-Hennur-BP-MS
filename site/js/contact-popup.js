@@ -20,7 +20,7 @@
  * the same fields form-handler.js sends. The Worker requires a message, so a
  * fixed one is sent that also says where the lead came from. The form
  * carries the same hidden fields as the page's: Project Name, Zone and
- * lead_source (PNZ MS Lead).
+ * lead_source (BP MS Lead).
  *
  * Closes on the X button, the Esc key or a click outside. On a phone it is a
  * compact sheet at the foot of the screen, not a full-screen cover.
@@ -37,7 +37,7 @@
   var ENDPOINT = '/api/lead';
   var PROJECT = "Sobha Hennur";
   var ZONE = "North Bangalore";
-  var LEAD_SOURCE = "PNZ MS Lead";
+  var LEAD_SOURCE = "BP MS Lead";
   var MESSAGE = 'Asked for a call back through the website pop-up.';
   /* The checklist allows 5 to 10 seconds. */
   var DELAY_MS = 8000;

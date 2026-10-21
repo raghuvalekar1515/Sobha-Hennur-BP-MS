@@ -29,7 +29,7 @@ PageSpeed on these sites.
   of the platform, company or document the information came from ("as
   published by …", "… brochure lists", "environmental application records …",
   "as reported", "<Builder> render", "from <Builder>'s pages"). State facts
-  directly. The hidden form field `lead_source` = `PNZ MS Lead` stays.
+  directly. The hidden form field `lead_source` = `BP MS Lead` stays.
   "This website is operated by a channel partner. It is not the official
   website of <Builder>" is a disclaimer, not attribution, and stays.
 - Both rules cover every page, FAQs, image alt/title text, figcaptions, page
@@ -44,7 +44,7 @@ PageSpeed on these sites.
 
 Every enquiry form carries:
 ```html
-<input type="hidden" name="lead_source" value="PNZ MS Lead">
+<input type="hidden" name="lead_source" value="BP MS Lead">
 <input type="hidden" name="Project Name" value="<the project's name>">
 ```
 `site/js/form-handler.js` sends them as `lead_source` and `project`; the
@@ -55,7 +55,7 @@ Worker prints `Project:` and `Source:` lines in Telegram and email.
 - Opens automatically 5–10 seconds after landing (currently 8 s).
 - Once per session: does not reappear on other pages or after it is closed
   (`sessionStorage`), and never again once a lead is sent (`localStorage`).
-- Same hidden fields (`Project Name`, `lead_source` = PNZ MS Lead), posts to
+- Same hidden fields (`Project Name`, `lead_source` = BP MS Lead), posts to
   the same `/api/lead`, so it reaches Telegram and email like the form.
 - Closes on X, Esc and a click outside; compact bottom sheet on phones.
 - Script tag is `defer` and the modal is built only after `window` load, so
@@ -109,7 +109,7 @@ live. The master list is the tracker sheet (below). Known corrections to it:
 ## Phase 7 · Live test (step 14)
 
 Submit the live contact form and confirm it reaches Telegram and
-raghuvalekar1515@gmail.com with Project Name and Source = PNZ MS Lead. The
+raghuvalekar1515@gmail.com with Project Name and Source = BP MS Lead. The
 pop-up must open within 5–10 s and its test submission must also reach
 Telegram and email.
 
