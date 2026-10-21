@@ -1,0 +1,114 @@
+{
+  "name": "sobha-hennur-bp-ms",
+  "compatibility_date": "2026-09-03",
+
+  // The site is the Webflow export, committed as-is under ./site. The Worker
+  // exists only to catch POST /api/lead; everything else is served straight
+  // from ./site via the ASSETS binding.
+  "main": "worker/index.js",
+
+  "assets": {
+    "directory": "./site",
+
+    // Lets worker/index.js hand non-API requests back to the asset server.
+    "binding": "ASSETS",
+
+    // A Webflow export is flat files -- price.html, not price/index.html --
+    // but every canonical URL in the markup is extensionless
+    // (https://sobha-hennur.info/price). "auto-trailing-slash" serves
+    // /price from price.html and answers /price.html with a redirect to it,
+    // which is what Cloudflare Pages was doing before this migration and what
+    // keeps those canonicals honest. Changing it to "none" would 404 every
+    // canonical URL on the site.
+    "html_handling": "auto-trailing-slash",
+
+    // Webflow does export a 404.html, unlike the Trump Towers generator.
+    "not_found_handling": "404-page",
+
+    // Static assets are matched before the Worker by default. /api/lead is not
+    // a file on disk so it would fall through anyway, but pinning it here means
+    // adding an asset at that path can never shadow the endpoint.
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Outbound email through Cloudflare Email Service. No third party account
+  // and no API key: mail to an address already verified as an Email Routing
+  // destination is free on every plan and counts against no quota.
+  //
+  // Requires Email Routing enabled on sobha-hennur.info and the recipient
+  // verified under Email Routing -> Destination Addresses.
+  //
+  // The binding carries no destination_address, so the recipient below can
+  // change without touching the binding itself.
+  "send_email": [{ "name": "LEAD_EMAIL" }],
+
+  // LEAD_EMAIL_FROM is a role address on the project's own domain. It does not
+  // need to be a real mailbox -- only the domain must be onboarded to Email
+  // Routing -- but replies to it bounce, hence no-reply.
+  //
+  // LEAD_EMAIL_TO is where enquiries are sent, comma separated for several.
+  // It sits here rather than in a secret only because this repository is
+  // private. Neither value reaches the browser: the Worker environment is
+  // server side and nothing under ./site references them.
+  //
+  // If this repository is ever made public, delete the LEAD_EMAIL_TO line and
+  // set it as a secret instead:
+  //   npx wrangler secret put LEAD_EMAIL_TO
+  // Set one or the other, never both, or the two definitions collide.
+  "vars": {
+    "LEAD_EMAIL_FROM": "no-reply@sobha-hennur.info",
+    "LEAD_EMAIL_TO": "raghuvalekar1515@gmail.com"
+  },
+
+  // RESEND_API_KEY is an optional fallback for accounts without Email
+  // Routing; when the send binding above is present it takes precedence.
+
+  // Telegram notification is configured entirely through encrypted secrets,
+  // so no chat id or bot token is ever committed:
+  //   npx wrangler secret put TELEGRAM_BOT_TOKEN     (from @BotFather)
+  //   npx wrangler secret put TELEGRAM_CHAT_IDS      (comma separated)
+  // A second and third bot use the _2 and _3 suffixes, each with its own chat
+  // list, since a chat is only addressable by a bot it has started.
+  // All are optional. Without them leads are still stored in KV; the Worker
+  // simply logs that notification is not configured.
+
+  // Every lead is also added to the shared "PNZ MS Leads" Google Sheet. The
+  // assetz-mizu-ki Worker in this account holds the Apps Script URL and
+  // secret and exports a LeadSheet entrypoint; this binding lets
+  // worker/index.js call it, so nothing secret is configured here or in the
+  // dashboard. A named entrypoint is reachable only through a binding from
+  // this account, never from the internet. If assetz-mizu-ki is renamed or
+  // deleted, leads still store and notify but miss the sheet.
+  "services": [
+    { "binding": "LEAD_SHEET", "service": "assetz-mizu-ki", "entrypoint": "LeadSheet" }
+  ],
+
+  // Submission cap per IP. This is the platform limiter, not a counter in KV:
+  // KV caches reads and is eventually consistent, so a burst of requests would
+  // all read the same stale count and none would be blocked.
+  // `period` accepts only 10 or 60 seconds.
+  "ratelimits": [
+    {
+      "name": "LEAD_RATE_LIMIT",
+      "namespace_id": "1001",
+      "simple": { "limit": 5, "period": 60 }
+    }
+  ],
+
+  // Captured enquiries. Create the namespace first and paste its id below:
+  //   npx wrangler kv namespace create sobha-hennur-bp-ms-leads
+  // Read them in the Cloudflare dashboard under
+  // Storage & Databases -> KV -> sobha-hennur-bp-ms-leads. Keys are
+  // `lead:<ISO timestamp>:<id>` and KV lists lexicographically, so they sort
+  // chronologically with no tooling.
+  //
+  // Named for the project rather than plain "leads" because one account holds
+  // a namespace per microsite, and a Worker bound to the wrong one would mix
+  // two clients' enquiries together.
+  "kv_namespaces": [
+    {
+      "binding": "LEADS",
+      "id": "c426e8f98f6c4a799eccea6c8daf30f3"
+    }
+  ]
+}
