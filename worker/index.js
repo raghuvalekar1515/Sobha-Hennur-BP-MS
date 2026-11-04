@@ -611,8 +611,26 @@ async function handleLead(request, env, ctx) {
    is served from the extensionless asset with a 200. */
 const GSC_VERIFICATION_PATH = "/googlebe4d73998ad2e304.html";
 
+/* Every canonical URL, the sitemap and the schema use the bare domain (no
+   www). A request for the www host is answered with a 301 to the same path on
+   the bare domain over HTTPS, so www can never serve a second copy of each
+   page. GET and HEAD get a 301; any other method a 308, which keeps the
+   method and body. Other hosts (workers.dev, previews) are left alone.
+   run_worker_first in wrangler.jsonc sends pages here before the asset server
+   answers them. */
+function wwwRedirect(request) {
+  const url = new URL(request.url);
+  if (!url.hostname.startsWith("www.")) return null;
+  url.protocol = "https:";
+  url.hostname = url.hostname.slice(4);
+  const keepsMethod = request.method !== "GET" && request.method !== "HEAD";
+  return new Response(null, { status: keepsMethod ? 308 : 301, headers: { location: url.toString() } });
+}
+
 export default {
   async fetch(request, env, ctx) {
+    const toBareDomain = wwwRedirect(request);
+    if (toBareDomain) return toBareDomain;
     const url = new URL(request.url);
     if (url.pathname === "/api/lead/status") {
       return url.searchParams.get("check") === "telegram" ? telegramCheck(request, env) : statusReport(env);

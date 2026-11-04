@@ -31,7 +31,11 @@
     // The Search Console verification file runs the Worker first too, so it is
     // answered with the file and a 200 rather than the redirect above, which
     // Google's verifier would not accept (worker/index.js).
-    "run_worker_first": ["/api/*", "/googlebe4d73998ad2e304.html"]
+    // Pages pass through the Worker first so a request for the www host gets a
+    // 301 to the bare domain (wwwRedirect in worker/index.js). The "!"
+    // patterns keep static files on the asset server directly, so a page view
+    // costs one Worker request, not one per file.
+    "run_worker_first": ["/*", "/api/*", "/googlebe4d73998ad2e304.html", "!/css/*", "!/fonts/*", "!/images/*", "!/js/*"]
   },
 
   // Outbound email through Cloudflare Email Service. No third party account
