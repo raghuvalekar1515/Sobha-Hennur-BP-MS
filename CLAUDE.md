@@ -38,6 +38,15 @@ PageSpeed on these sites.
 - Missing images come from the same builder's other projects of the same type
   (apartment → apartment, villa → villa); captions may name the project shown.
 - Schema markup (JSON-LD) on all pages, plus llms.txt and robots.txt.
+  The JSON-LD must show 0 errors and 0 warnings at validator.schema.org.
+  `ResidentialComplex` is not a schema.org type: use `ApartmentComplex`
+  (apartments), `GatedResidenceCommunity` (villas, plots) or `Residence`.
+  `developer` is not a schema.org property: give the builder as
+  `additionalProperty` `{"@type": "PropertyValue", "name": "Developer",
+  "value": "<Builder>"}`. Unit facts (`floorSize`, `numberOfRooms`,
+  `accommodationCategory`, prices) are not valid on a complex either; use
+  `additionalProperty` for them, and numbers, not text, for counts
+  ("3 to 4" BHK is `{"@type": "QuantitativeValue", "minValue": 3, "maxValue": 4}`).
 - Mobile-first layout · 95+ Google PageSpeed on desktop and mobile.
 
 ### Contact form hidden fields (lead tracking)
