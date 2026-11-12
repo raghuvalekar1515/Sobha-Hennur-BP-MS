@@ -1,38 +1,19 @@
 /*
- * Sends Webflow form submissions to this site's own lead endpoint.
+ * Sends the contact form to this site's own lead endpoint.
  *
- * A Webflow export ships its forms with no `action`, so webflow.js posts them
- * to https://webflow.com/api/v1/form/{siteId}. That endpoint only accepts
- * submissions from Webflow-hosted domains, so on any other host every
- * submission fails and the visitor sees "Oops! Something went wrong."
+ * Every enquiry form sits in an element marked data-lead-form, next to its
+ * thank-you message (.lead-form_done) and its error message
+ * (.lead-form_fail), both Bootstrap alerts that start hidden. The form posts
+ * to POST /api/lead, handled by worker/index.js in this repository: the
+ * enquiry is written to KV before any notification is attempted, then emailed,
+ * sent to Telegram and added to the shared sheet. Nothing here is a
+ * third-party service and nothing secret reaches the browser.
  *
- * These forms post to POST /api/lead instead, handled by worker/index.js in
- * this repository: the enquiry is written to KV before any notification is
- * attempted, then emailed and sent to Telegram. Nothing here is a third-party
- * service and nothing secret reaches the browser.
- *
- * The success and error messages already in the Webflow markup are reused, so
- * the visitor stays on the page and the form behaves as it was designed to.
- *
- * ---------------------------------------------------------------------------
- * DROP-IN USE ON ANOTHER WEBFLOW EXPORT
- *
- *   1. Copy this file into the export's js/ folder.
- *   2. Add this line before </body> on every page that has a form:
- *        <script src="js/form-handler.js" type="text/javascript"></script>
- *   3. Set PROJECT below, and deploy the Worker that answers ENDPOINT.
- *
- * No changes to the form markup are needed. Every Webflow form on the page is
- * picked up automatically, so this works on an untouched export.
- *
- * Three hidden inputs ARE read from the markup, so every lead is tracked:
+ * Three hidden inputs are read from the markup, so every lead is tracked:
  * "Project Name" (falls back to PROJECT below), Zone (falls back to ZONE
- * below) and lead_source (BP MS Lead). Forms without them submit exactly as
- * before.
+ * below) and lead_source (PNZ MS Lead).
  *
- * Password pages, search forms, and anything marked data-skip-email are left
- * alone. To exclude a form, add data-skip-email to it.
- * ---------------------------------------------------------------------------
+ * A form marked data-skip-email is left alone.
  */
 (function () {
   'use strict';
@@ -47,33 +28,29 @@
    * names it. */
   var ZONE = "North Bangalore";
 
-  /* Webflow wraps every form in a .w-form div that also holds the success and
-   * error messages, which makes it the reliable way to find forms in an export
-   * without depending on the class names a particular site happens to use. */
+  /* A Bootstrap page marks the wrapper data-lead-form; a page still in its
+   * Webflow markup (a standalone landing page, say) uses .w-form. */
   function wrapperOf(form) {
-    return form.closest ? form.closest('.w-form') : null;
+    return form.closest ? form.closest('[data-lead-form], .w-form') : null;
   }
 
   function isHandled(form) {
     if (!form || form.tagName !== 'FORM' || !wrapperOf(form)) return false;
-    if (form.hasAttribute('data-skip-email')) return false;
-    /* The password page posts to Webflow's own auth endpoint, and a search
-     * form navigates to a results page. Neither is a lead. */
-    if (/\.wf_auth/.test(form.getAttribute('action') || '')) return false;
-    if (form.classList.contains('w-password-page')) return false;
-    if (form.querySelector('input[type="search"]')) return false;
-    return true;
+    return !form.hasAttribute('data-skip-email');
   }
 
   function show(el) {
     if (!el) return;
-    el.style.display = 'block';
+    el.hidden = false;
+    if (el.classList.contains('w-form-done') || el.classList.contains('w-form-fail')) el.style.display = 'block';
     if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
     el.focus();
   }
 
   function hide(el) {
-    if (el) el.style.display = 'none';
+    if (!el) return;
+    el.hidden = true;
+    if (el.classList.contains('w-form-done') || el.classList.contains('w-form-fail')) el.style.display = 'none';
   }
 
   function valueOf(form, name) {
@@ -83,24 +60,24 @@
 
   function send(form) {
     var wrapper = wrapperOf(form);
-    var done = wrapper.querySelector('.w-form-done');
-    var fail = wrapper.querySelector('.w-form-fail');
+    var done = wrapper.querySelector('.lead-form_done, .w-form-done');
+    var fail = wrapper.querySelector('.lead-form_fail, .w-form-fail');
     var button = form.querySelector('[type="submit"]');
-    var label = button ? button.value : null;
+    /* A <button> shows its text; an <input type="submit"> its value. */
+    var prop = button && button.tagName === 'INPUT' ? 'value' : 'textContent';
+    var label = button ? button[prop] : null;
     var wait = button ? button.getAttribute('data-wait') : null;
 
     if (button) {
       button.disabled = true;
-      button.classList.add('w-form-loading');
-      if (wait) button.value = wait;
+      if (wait) button[prop] = wait;
     }
     hide(fail);
 
     function restore() {
       if (!button) return;
       button.disabled = false;
-      button.classList.remove('w-form-loading');
-      if (label !== null) button.value = label;
+      if (label !== null) button[prop] = label;
     }
 
     var payload = {
@@ -112,17 +89,17 @@
       project: valueOf(form, 'Project Name') || PROJECT,
       /* Hidden field in the markup (name="Zone"). */
       zone: valueOf(form, 'Zone') || ZONE,
-      /* Hidden field in the markup (name="lead_source"). Read from the form
-       * rather than hardcoded here, so a landing page or a campaign variant
-       * can carry its own value without touching this file. Absent on a form
-       * that does not declare it, which the Worker treats as unset. */
+      /* Hidden field in the markup (name="lead_source"), read from the form so
+       * a landing page or campaign variant can carry its own value. */
       lead_source: valueOf(form, 'lead_source'),
-      /* Which page produced the lead, so enquiries can be attributed. */
+      /* Which page produced the lead. */
       page: window.location.pathname,
       /* Honeypot: hidden from people, filled by bots. The Worker answers a
        * filled one with 200 so the bot records success and does not adapt. */
       company: valueOf(form, 'company')
     };
+    /* A site with no zone configured sends none, as before. */
+    if (!payload.zone) delete payload.zone;
 
     fetch(ENDPOINT, {
       method: 'POST',
@@ -141,35 +118,29 @@
         if (!result.ok || !result.body.ok) {
           throw new Error(result.body.error || 'Submission was rejected');
         }
-        /* What Webflow does on success: hide the form, reveal the thank-you. */
-        form.style.display = 'none';
+        form.hidden = true;
+        if (wrapper.classList.contains('w-form')) form.style.display = 'none';
         show(done);
-        /* A lead is in, so the 10 second pop-up (contact-popup.js) stops. */
+        /* A lead is in, so the pop-up (contact-popup.js) stays closed. */
         try { window.localStorage.setItem('contact_popup_sent', '1'); } catch (e) { /* private mode */ }
       })
       .catch(function (error) {
         show(fail);
         restore();
-        if (window.console) {
-          window.console.error('Lead submission failed:', error);
-        }
+        if (window.console) window.console.error('Lead submission failed:', error);
       });
   }
 
-  /* Listening on the document in the capture phase means this runs before the
-   * handler webflow.js binds to the form itself, whatever order the scripts
-   * load in. Stopping propagation there keeps webflow.js from also posting the
-   * form to an endpoint that would reject it. */
   document.addEventListener('submit', function (event) {
     var form = event.target;
     if (!isHandled(form)) return;
     event.preventDefault();
-    event.stopPropagation();
+    /* The browser checks the required fields first; report them if not. */
+    if (form.reportValidity && !form.reportValidity()) return;
     send(form);
   }, true);
 
-  /* Added by script rather than to the markup so the Webflow export stays
-   * exactly as exported, and so a real visitor can never see or tab into it. */
+  /* Added by script so a real visitor can never see or tab into it. */
   function addHoneypot(form) {
     if (form.elements.company) return;
     var input = document.createElement('input');
@@ -183,8 +154,7 @@
   }
 
   function init() {
-    var forms = [].filter.call(document.querySelectorAll('.w-form form'), isHandled);
-    forms.forEach(addHoneypot);
+    [].filter.call(document.querySelectorAll('[data-lead-form] form, .w-form form'), isHandled).forEach(addHoneypot);
   }
 
   if (document.readyState === 'loading') {

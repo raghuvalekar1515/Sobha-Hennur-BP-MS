@@ -1,0 +1,14 @@
+{
+  "name": "sobha-hennur-bp-ms-assets",
+  "private": true,
+  "type": "module",
+  "description": "Rebuilds site/css/bootstrap.min.css and site/js/bootstrap.min.js. Not used by the deploy.",
+  "scripts": {
+    "build": "node assets.mjs ../site"
+  },
+  "devDependencies": {
+    "bootstrap": "6.0.0-alpha.1",
+    "purgecss": "9.1.0",
+    "esbuild": "0.28.2"
+  }
+}

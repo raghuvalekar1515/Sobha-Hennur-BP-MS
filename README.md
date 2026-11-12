@@ -34,22 +34,25 @@ Telegram and the shared Google Sheet.
 > domain is in every canonical URL, the sitemap, the schema and the llms files: if it
 > ever changes, rebuild.
 
-The layout is the Webflow export's. Its copy, pictures, logo and palette are this
-project's, generated from one facts file; the classes, Webflow ids,
-interactions, contact form and its hidden `lead_source` input (below) are the
-template's own.
+The design is the PNZ microsite template's, moved from its Webflow export to
+Bootstrap 6 with the look unchanged (Bootstrap 6, below). Its copy, pictures,
+logo and palette are this project's, generated from one facts file.
 
 ```
-site/            The Webflow export. The only directory served.
+site/            The website. The only directory served.
   *.html         13 pages
   robots.txt sitemap.xml   crawler files
-  css/ fonts/    styles and the self-hosted fonts
+  css/bootstrap.min.css  Bootstrap 6, trimmed to the classes the pages use
+  css/site.css   the site's design, on Bootstrap's tokens
+  fonts/         the self-hosted fonts
   images/        pictures: WebP, narrower copies for phones, AVIF twins
-  js/webflow.js  Webflow runtime (interactions, sliders, nav)
+  js/bootstrap.min.js  Bootstrap's Drawer plugin (the menu on phones and tablets)
   js/form-handler.js   posts the contact form to /api/lead
 worker/
   index.js       lead endpoint; everything else falls through to site/
   test.mjs       56 assertions, no dependencies
+tools/
+  assets.mjs     rebuilds the two Bootstrap files (not part of the deploy)
 wrangler.jsonc   bindings and deploy config
 ```
 
@@ -58,6 +61,39 @@ Keeping `worker/` outside `site/` is structural, not cosmetic: nothing but
 grows later.
 
 ---
+
+## Bootstrap 6
+
+The pages were moved from their Webflow export to Bootstrap 6 (`6.0.0-alpha.1`,
+the only v6 release so far) on 12 November 2026, with the design unchanged:
+every page was compared with the Webflow version at 1440, 1000, 768 and 390 px
+wide, element by element, and the menu, FAQs, contact form and pop-up were
+checked to behave and send leads exactly as before.
+
+- **Markup.** Bootstrap's navbar with its drawer for the menu (in the bar from
+  992 px, the template's breakpoint; a drawer below that, with a copy of the bar
+  at its top so it opens as the Webflow menu did), `grid` for the layout grids,
+  `<details>`/`<summary>` accordions (`accordion-item`) for the FAQs,
+  `btn-solid theme-primary` buttons, `form-control` fields and Bootstrap
+  alerts' `hidden` pattern for the thank-you and error messages
+  (`data-lead-form`, `.lead-form_done`, `.lead-form_fail`). The template's
+  own class names stay beside Bootstrap's and carry the design.
+- **CSS.** `css/bootstrap.min.css` is Bootstrap's compiled CSS trimmed to the
+  classes the pages use. `css/site.css` holds the site's design in the
+  `custom` cascade layer Bootstrap reserves for it: the fonts, Bootstrap's
+  `--bs-*` tokens pointed at the palette, the element defaults the pages were
+  designed on, the template's rules, and Bootstrap's components in that design.
+  It replaces `normalize.css`, `webflow.css` and the export's own stylesheet.
+- **JavaScript.** `js/bootstrap.min.js` is Bootstrap's Drawer plugin, deferred.
+  jQuery and webflow.js are gone. `form-handler.js` is the Bootstrap version
+  shared with the newer microsites (same fields, same endpoint).
+
+After adding a Bootstrap class that no page used before, rebuild the trimmed
+files:
+
+```sh
+cd tools && npm install && node assets.mjs ../site
+```
 
 ## Architecture
 
@@ -106,7 +142,7 @@ alone would submit nothing:
 | Store or format it | `LIMITS`, `validate()`, `formatLead()` in `worker/index.js` |
 
 The field is optional at every layer. A page cached before it existed, or
-another Webflow export without it, still submits; the `Source:` line is simply
+a page without it, still submits; the `Source:` line is simply
 omitted. It is **not** the spam honeypot - that is a separate `company` field
 injected by script and never stored. This one is a real submitted value.
 
@@ -286,9 +322,8 @@ the foot of the screen on phones. Its design follows the enquiry dialog on the D
 Legacy sites: a native `<dialog>` with name, phone and email, and a button
 carrying the same classes as the contact form's.
 
-It is loaded on every page except `401.html` by the small script before
-`</body>` that loads jQuery and webflow.js after the first paint (see Speed),
-and brings its own markup and styles, so the Webflow markup is untouched.
+It is loaded on every page except `401.html` by a deferred `<script>` tag, and
+brings its own markup and styles.
 Leads post to `/api/lead` with the same fields as `form-handler.js`, carrying
 the page's own `lead_source` (or `LEAD_SOURCE` on a page without a form) and
 a fixed message, since the Worker requires one.
@@ -296,9 +331,7 @@ a fixed message, since the Worker requires one.
 It does not open once this browser has sent a lead, from the pop-up or the
 page's own form (`form-handler.js` sets the same flag), over another open
 dialog, or while the visitor is typing in a form on the page. `PROJECT`,
-`LEAD_SOURCE`, `BUTTON_CLASS` and `DELAY_MS` are at the top of the file. When
-re-exporting from Webflow, re-add its `<script>` line along with
-`form-handler.js`'s.
+`LEAD_SOURCE`, `BUTTON_CLASS` and `DELAY_MS` are at the top of the file.
 
 ## Go-live checklist
 
@@ -325,9 +358,9 @@ Every page was measured with Lighthouse (the engine behind PageSpeed Insights),
 on a phone and a desktop profile, before delivery. Keep these in place when
 editing:
 
-- jQuery and webflow.js load after the first paint, from the small script
-  before `</body>`, rather than as deferred scripts, which ran before it.
-  `form-handler.js` stays deferred, so every form is guarded from the start.
+- No jQuery and no webflow.js: Bootstrap's only script is the menu drawer,
+  deferred, as are `form-handler.js` and the pop-up. Bootstrap's CSS is trimmed
+  to the classes the pages use, and so is `site/css/site.css`.
 - Pictures carry narrower copies (`-480`, `-720`) in their `srcset`, so a phone
   downloads one that fits, and an AVIF twin is offered first in a `<picture>`, with
   WebP as the fallback.
@@ -348,9 +381,9 @@ contrast). Text is Inter, the typeface sobha.com is set in: light for text and
 regular for the tracked uppercase headings. Every value was contrast-measured
 before use.
 
-The Webflow export was built dark, so the palette is repointed at its
+The template was built dark, so the palette is repointed at its
 source rather than rule by rule: the light-theme block at the end of
-`site/css/sobha-hennur.webflow.css` redefines the export's own custom
+`site/css/site.css` redefines the export's own custom
 properties, then overrides only the rules that hard-code a dark
 background. Change `--riv-accent` there and every button, label, link,
 table stripe and the lettermark follow. The generated tokens still read

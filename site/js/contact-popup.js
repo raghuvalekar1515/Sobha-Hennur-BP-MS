@@ -12,7 +12,7 @@
  * another page or after the visitor closes it (sessionStorage), and:
  *   - never again once this browser has sent a lead, from the pop-up or the
  *     page's own form (form-handler.js sets the same localStorage flag),
- *   - not over another open dialog, and
+ *   - not over another open dialog (the menu drawer, for one), and
  *   - not while the visitor is typing into a form on the page; it waits
  *     until they stop.
  *
@@ -28,8 +28,8 @@
  * Nothing is built until the page has finished loading (window load), and the
  * <script> tag is deferred, so the pop-up never competes with the page itself.
  *
- * The form is deliberately not inside a .w-form wrapper: webflow.js and
- * form-handler.js only handle forms that are, so neither touches this one.
+ * The form is not inside a data-lead-form wrapper, so form-handler.js leaves
+ * it to this file.
  */
 (function () {
   'use strict';
@@ -47,7 +47,7 @@
   /* Once shown, not again this session: on another page or after closing. */
   var SHOWN_KEY = 'contact_popup_shown';
   /* The classes on this site's contact form button, so the pop-up's matches. */
-  var BUTTON_CLASS = 'button w-button';
+  var BUTTON_CLASS = "button btn-solid theme-primary";
 
   var CSS =
     '.cpop{border:0;border-radius:10px;padding:0;margin:auto;width:min(94vw,460px);max-height:calc(100% - 2rem);' +
@@ -190,7 +190,10 @@
 
   /* Opening over a half-typed enquiry would take the visitor's keystrokes. */
   function busy() {
-    if (document.querySelector('dialog[open]')) return true;
+    /* An open menu drawer or picture is over the page; the menu sitting in
+       the bar on a wide screen is not. */
+    var other = document.querySelector('dialog[open]:not(.cpop)');
+    if (other && getComputedStyle(other).position === 'fixed') return true;
     var el = document.activeElement;
     return !!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
   }

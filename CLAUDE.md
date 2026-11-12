@@ -48,6 +48,12 @@ PageSpeed on these sites.
   `additionalProperty` for them, and numbers, not text, for counts
   ("3 to 4" BHK is `{"@type": "QuantitativeValue", "minValue": 3, "maxValue": 4}`).
 - Mobile-first layout · 95+ Google PageSpeed on desktop and mobile.
+- **Framework: Bootstrap 6** for every page (the user's standing rule from
+  12 November 2026). Pinned to `bootstrap@6.0.0-alpha.1`, the only v6 release
+  so far; move to 6.0.0 when it ships. Bootstrap's CSS is trimmed to the
+  classes the pages use and its Drawer plugin is the only script it adds
+  (`tools/assets.mjs`); the builder's palette and font are set through
+  Bootstrap's own `--bs-*` tokens in `site/css/site.css`.
 
 ### Contact form hidden fields (lead tracking)
 
