@@ -10,7 +10,7 @@ Telegram and the shared Google Sheet.
 > **Built against `CLAUDE.md`**, the standing microsite checklist: no RERA wording
 > anywhere, no source attribution, Sobha's palette and type (self-hosted under
 > `site/fonts/`), the "S" monogram instead of the builder's logo, the hidden
-> `Project Name` and `lead_source` fields on every form, the 8-second pop-up, and
+> `Project Name` and `lead_source` fields on every form, the 5-second pop-up and offer buttons, and
 > no em dashes anywhere in the copy (the build fails if one appears).
 >
 > **The design mirrors sobha.com**: a black header and footer, tracked uppercase
@@ -315,7 +315,7 @@ straight into the HTML.
 
 ## Contact pop-up
 
-`site/js/contact-popup.js` opens an enquiry form 8 seconds after the visitor
+`site/js/contact-popup.js` opens an enquiry form 5 seconds after the visitor
 lands, once per browser session (not again on another page or after it is
 closed). It closes on X, Esc or a click outside, and is a compact sheet at
 the foot of the screen on phones. Its design follows the enquiry dialog on the DSR Ciel and Sri Tirumala

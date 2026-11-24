@@ -22,9 +22,21 @@ PageSpeed on these sites.
 
 - **Never use the builder's logo.** Use a first-letter monogram of the builder
   name in the builder's colours (the `.brandmark_badge` lettermark).
-- **No RERA details anywhere**: no RERA number, status or link. For a
-  pre-launch project never write "RERA not obtained", "RERA pending",
-  "registration awaited" or anything similar — leave it out entirely.
+- **RERA only when the project is registered** (the user's rule from
+  24 November 2026, replacing "no RERA anywhere"):
+  - Registered project: show its RERA registration number exactly as the
+    state portal lists it (rera.karnataka.gov.in for Bangalore,
+    rera.telangana.gov.in for Hyderabad), with that portal's address next to
+    it, e.g. "RERA No. PRM/KA/RERA/…, rera.karnataka.gov.in". Put it in the
+    overview facts, the footer of every page, the FAQs and the JSON-LD
+    (`additionalProperty` `{"@type": "PropertyValue", "name": "RERA
+    Registration Number", "value": "…"}`). Check the number on the portal
+    before publishing; never guess one or copy it unchecked from another site.
+    The portal address next to the number is part of the registration
+    statement, not source attribution.
+  - Not registered (pre-launch): leave RERA out entirely. Never write "RERA
+    not obtained", "RERA pending", "registration awaited" or anything
+    similar. Once the project is registered, add the number.
 - **No source attribution anywhere**: no "Source:" lines, credits, or mentions
   of the platform, company or document the information came from ("as
   published by …", "… brochure lists", "environmental application records …",
@@ -67,7 +79,7 @@ Worker prints `Project:` and `Source:` lines in Telegram and email.
 
 ### Auto pop-up lead modal (`site/js/contact-popup.js`)
 
-- Opens automatically 5–10 seconds after landing (currently 8 s).
+- Opens automatically 5–10 seconds after landing (currently 5 s, asking for the price sheet: see Offer buttons).
 - Once per session: does not reappear on other pages or after it is closed
   (`sessionStorage`), and never again once a lead is sent (`localStorage`).
 - Same hidden fields (`Project Name`, `lead_source` = BP MS Lead), posts to
@@ -76,12 +88,39 @@ Worker prints `Project:` and `Source:` lines in Telegram and email.
 - Script tag is `defer` and the modal is built only after `window` load, so
   PageSpeed stays 95+.
 
+### Offer buttons and the price-sheet pop-up (every microsite, from 24 November 2026)
+
+- Buttons ask for something specific instead of "Get In Touch": Download
+  Brochure, Get Price Sheet, Get Floor Plans (Get Plot Sizes on a plots site)
+  and Book a Site Visit, chosen by the section or page they sit on. Each
+  carries `data-cta` (`brochure`, `price`, `floorplan`, `plots`, `visit`).
+  Sites built by `build/generate.js` do the same with their `data-modal`
+  intents (Cost sheet, Floor plan, Site visit).
+- A click opens the pop-up form on the same page, with matching wording, and
+  the lead's message says what was asked for ("Asked for the brochure through
+  the website pop-up."), so it shows in Telegram, the email and the sheet's
+  Remarks. The href stays as the path without the script. Menu and footer text
+  links still go to the contact page.
+- The timed pop-up opens after 5 seconds and asks for the price sheet.
+- The copy never promises a document the project has not released: "the
+  brochure, or the latest project details if the brochure is not out yet".
+  The sales team sends what exists.
+- Email is optional on every form and in the Worker; name and phone are
+  required. A bare ten-digit number must start with 6 to 9 (bots send
+  1000000000).
+- Script tags carry a version (`?v=20261124`). Bump it whenever the script
+  changes: some sites cache `/js/*` for 7 days or a year.
+- Judge it by leads per site in the PNZ MS Leads sheet, before (7 October to
+  24 November 2026) and after.
+
 ## Phase 3 · Content QA (step 5)
 
 Review every page against the rules above:
 - All links work (internal and the sibling-microsite links).
 - All forms submit correctly (`node worker/test.mjs` passes).
-- No RERA mentions anywhere: `grep -rni rera site/` prints nothing.
+- RERA: a registered project shows its portal-checked number (and the portal
+  address) and nothing else about RERA; an unregistered project has no RERA
+  mention at all (`grep -rni rera site/` prints nothing).
 - No source/attribution lines naming a platform or company.
 
 ## Phase 4 · Outbound backlinks (step 6)

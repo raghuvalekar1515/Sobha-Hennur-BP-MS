@@ -1,5 +1,5 @@
 /*
- * Contact pop-up: an enquiry form that opens by itself 8 seconds after the
+ * Contact pop-up: an enquiry form that opens by itself 5 seconds after the
  * visitor lands, once per browser session.
  *
  * The design follows the enquiry dialog on the DSR Ciel and Sri Tirumala
@@ -39,8 +39,54 @@
   var ZONE = "North Bangalore";
   var LEAD_SOURCE = "BP MS Lead";
   var MESSAGE = 'Asked for a call back through the website pop-up.';
+  /* What each button asks for (data-cta on the page). The timed opening asks
+     for the price sheet. The lead's message says which, so the sales team
+     sees it in Telegram, the email and the sheet's Remarks column. The copy
+     never promises a document the project has not released. */
+  var OFFERS = {
+    price: {
+      title: PROJECT + ' price sheet',
+      lede: 'Leave your name and number and we will send you the latest price sheet, or the latest pricing details if the official list is not out yet.',
+      button: 'Send me the price sheet',
+      message: 'Asked for the price sheet through the website pop-up.'
+    },
+    brochure: {
+      title: PROJECT + ' brochure',
+      lede: 'Leave your name and number and we will send you the brochure, or the latest project details if the brochure is not out yet.',
+      button: 'Send me the brochure',
+      message: 'Asked for the brochure through the website pop-up.'
+    },
+    floorplan: {
+      title: PROJECT + ' floor plans',
+      lede: 'Leave your name and number and we will send you the floor plans and unit sizes, or the latest details if the plans are not out yet.',
+      button: 'Send me the floor plans',
+      message: 'Asked for the floor plans through the website pop-up.'
+    },
+    plots: {
+      title: PROJECT + ' plot sizes',
+      lede: 'Leave your name and number and we will send you the plot sizes and layout, or the latest details if they are not out yet.',
+      button: 'Send me the plot sizes',
+      message: 'Asked for the plot sizes through the website pop-up.'
+    },
+    visit: {
+      title: 'Book a site visit',
+      lede: 'Leave your name and number and we will call you to fix a day and time that suits you.',
+      button: 'Request a site visit',
+      message: 'Asked for a site visit through the website pop-up.'
+    },
+    enquire: {
+      title: 'Enquire about ' + PROJECT,
+      lede: 'Leave your name and number and we will call you back with the details you need.',
+      button: 'Send my request',
+      message: MESSAGE
+    }
+  };
+  var LEDE_CSS = '.cpop_lede{margin:0 0 .9rem;font-size:.95rem;line-height:1.45;opacity:.85}' +
+    '@media (max-width:479px){.cpop_lede{font-size:.85rem;margin-bottom:.6rem}}';
+  /* Same-origin links to the contact page that look like buttons open the pop-up instead. */
+  var CONTACT_PATH = /^\/contact-us(\.html)?\/?$/;
   /* The checklist allows 5 to 10 seconds. */
-  var DELAY_MS = 8000;
+  var DELAY_MS = 5000;
   /* While the visitor is typing elsewhere, look again this often. */
   var RETRY_MS = 3000;
   var SENT_KEY = 'contact_popup_sent';
@@ -88,6 +134,7 @@
       '<button class="cpop_close" type="button" data-cpop-close aria-label="Close">&times;</button>' +
     '</div>' +
     '<div class="cpop_body">' +
+      '<p class="cpop_lede"></p>' +
       '<form class="cpop_form" novalidate>' +
         '<input type="hidden" name="Project Name">' +
         '<input type="hidden" name="Zone">' +
@@ -96,8 +143,8 @@
           '<input id="cpop-name" name="name" type="text" autocomplete="name" required minlength="2" maxlength="80"></div>' +
         '<div class="cpop_field"><label for="cpop-phone">Phone number</label>' +
           '<input id="cpop-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="16" placeholder="10 digit mobile number"></div>' +
-        '<div class="cpop_field"><label for="cpop-email">Email</label>' +
-          '<input id="cpop-email" name="email" type="email" autocomplete="email" required maxlength="120"></div>' +
+        '<div class="cpop_field"><label for="cpop-email">Email (optional)</label>' +
+          '<input id="cpop-email" name="email" type="email" autocomplete="email" maxlength="120"></div>' +
         '<div class="cpop_hp" aria-hidden="true"><label for="cpop-company">Company</label>' +
           '<input id="cpop-company" name="company" type="text" tabindex="-1" autocomplete="off"></div>' +
         '<p class="cpop_status" role="status" aria-live="polite"></p>' +
@@ -111,7 +158,7 @@
 
   var FALLBACK = 'That did not go through. Please try again in a moment.';
 
-  var dialog, form, status, done, lastFocus, timer;
+  var dialog, form, status, done, lastFocus, timer, current;
 
   function sent() {
     try { return window.localStorage.getItem(SENT_KEY) === '1'; } catch (e) { return false; }
@@ -136,7 +183,7 @@
     var pageZone = document.querySelector('form input[name="Zone"]');
 
     var style = document.createElement('style');
-    style.textContent = CSS;
+    style.textContent = CSS + LEDE_CSS;
     document.head.appendChild(style);
 
     dialog = document.createElement('dialog');
@@ -170,7 +217,16 @@
     });
   }
 
-  function open() {
+  function open(kind) {
+    current = OFFERS[kind] || OFFERS.enquire;
+    dialog.querySelector('.cpop_title').textContent = current.title;
+    dialog.querySelector('.cpop_lede').textContent = current.lede;
+    var send = form.querySelector('[type="submit"]');
+    if (!send.disabled) send.textContent = current.button;
+    /* Opened again after a lead was sent: show the form, not the thank-you. */
+    form.hidden = false;
+    done.hidden = true;
+    status.textContent = '';
     markShown();
     lastFocus = document.activeElement;
     if (typeof dialog.showModal === 'function') {
@@ -204,7 +260,7 @@
       timer = window.setTimeout(autoOpen, RETRY_MS);
       return;
     }
-    open();
+    open('price');
   }
 
   function submit(e) {
@@ -225,7 +281,7 @@
       name: form.elements.name.value,
       email: form.elements.email.value,
       phone: form.elements.phone.value,
-      message: MESSAGE,
+      message: (current || OFFERS.enquire).message,
       project: form.elements['Project Name'].value || PROJECT,
       zone: form.elements.Zone.value || ZONE,
       lead_source: form.elements.lead_source.value,
@@ -266,9 +322,32 @@
 
   function init() {
     if (sent() || shown()) return;
-    build();
+    if (!dialog) build();
     timer = window.setTimeout(autoOpen, DELAY_MS);
   }
+
+  /* Offer buttons (data-cta) and the button-styled links to the contact page
+     open the form here, so asking takes one click instead of a page load.
+     Plain text links (menu, footer) still go to the contact page, as do
+     clicks that open a new tab, and every link keeps its href for a browser
+     without this script. Works whether or not the timed opening has run. */
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (CONTACT_PATH.test(window.location.pathname)) return;
+    var el = e.target.closest && e.target.closest('[data-cta], a.button[href], a.btn-solid[href]');
+    if (!el) return;
+    var kind = el.getAttribute('data-cta');
+    if (!kind) {
+      var url;
+      try { url = new URL(el.getAttribute('href'), window.location.href); } catch (err) { return; }
+      if (url.origin !== window.location.origin || !CONTACT_PATH.test(url.pathname) || url.hash) return;
+      kind = 'enquire';
+    }
+    e.preventDefault();
+    window.clearTimeout(timer);
+    if (!dialog) build();
+    open(kind);
+  });
 
   /* After the page has loaded, so the pop-up costs the page nothing. */
   if (document.readyState === 'complete') {

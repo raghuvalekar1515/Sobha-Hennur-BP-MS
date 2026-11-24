@@ -102,13 +102,20 @@ function validate(input) {
     zone: clean(input.zone, LIMITS.zone) || SHEET_PROJECT.zone
   };
   if (lead.name.length < 2) return { error: "Please enter your name." };
-  if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(lead.email)) return { error: "Please check the email address." };
   const indianMobile = /^[6-9][0-9]{9}$/.test(lead.phone);
   const plausibleInternational = /^[0-9]{8,15}$/.test(lead.phone);
-  if (!indianMobile && !plausibleInternational) {
-    return { error: "Please enter a valid phone number." };
+  /* A bare ten-digit number is an Indian mobile typed without +91, so it must
+     start with 6 to 9. Bots send 1000000000 and the like; a real number from
+     abroad carries its country code and is longer. */
+  const bareTenDigits = /^[0-9]{10}$/.test(lead.phone);
+  if ((!indianMobile && !plausibleInternational) || (bareTenDigits && !indianMobile)) {
+    return { error: "Please enter a 10-digit mobile number, or your number with its country code." };
   }
   if (lead.message.length < 2) return { error: "Please enter a message." };
+  /* Optional in the markup, so only checked when the visitor supplied one. */
+  if (lead.email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(lead.email)) {
+    return { error: "Please check the email address." };
+  }
   return { lead };
 }
 
@@ -144,7 +151,7 @@ function formatLead(record) {
     "",
     "Name:    " + record.name,
     "Phone:   " + record.phone,
-    "Email:   " + record.email,
+    record.email ? "Email:   " + record.email : "",
     "",
     "Message: " + record.message,
     "",
