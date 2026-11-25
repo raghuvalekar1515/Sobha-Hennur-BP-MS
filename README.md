@@ -40,7 +40,7 @@ logo and palette are this project's, generated from one facts file.
 
 ```
 site/            The website. The only directory served.
-  *.html         13 pages
+  *.html         15 pages
   robots.txt sitemap.xml   crawler files
   css/bootstrap.min.css  Bootstrap 6, trimmed to the classes the pages use
   css/site.css   the site's design, on Bootstrap's tokens

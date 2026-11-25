@@ -115,6 +115,8 @@ Map: https://www.google.com/maps/search/?api=1&query=13.084928%2C77.661576
 - [Location](https://sobhahennur.co.in/location): the Hennur Road corridor and what is near it
 - [Price](https://sobhahennur.co.in/price): home types and homes planned, with the indicative price
 - [Gallery](https://sobhahennur.co.in/gallery): pictures of the towers, a home, gardens, play and the clubhouse
+- [About Sobha Limited](https://sobhahennur.co.in/about-builder): the developer, how and where it builds, and its projects in Bengaluru
+- [Sobha Hennur vs Goyal Kannuru](https://sobhahennur.co.in/vs-goyal-kannuru): a side-by-side guide to two early-stage projects on the Hennur Road corridor
 - [FAQs](https://sobhahennur.co.in/faqs): location, home types, price, distances, the township and the developer
 - [Contact](https://sobhahennur.co.in/contact-us): register your interest
 
