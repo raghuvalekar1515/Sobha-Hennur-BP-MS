@@ -349,6 +349,154 @@
     open(kind);
   });
 
+  /* Second chance (from 25 November 2026). A visitor who has not sent a lead
+     gets one more offer of the price sheet before going: on a computer when
+     the pointer leaves the page through the top (towards the tabs or the
+     close button), on a phone a slim bar once half the page has been read.
+     At most once per session, never on the contact page, never in the first
+     seconds of a visit, and not straight after the visitor closed the pop-up.
+     The lead's message says which of the two it came from. */
+  var LATER_KEY = 'contact_popup_later';
+  var LATER_MIN_MS = 3000;
+  var LATER_AFTER_CLOSE_MS = 20000;
+  var LATER_SCROLL = 0.5;
+  OFFERS.later = {
+    title: 'Before you go: the ' + PROJECT + ' price sheet',
+    lede: OFFERS.price.lede,
+    button: OFFERS.price.button,
+    message: 'Asked for the price sheet through the website exit offer.'
+  };
+  OFFERS.laterbar = {
+    title: OFFERS.price.title,
+    lede: OFFERS.price.lede,
+    button: OFFERS.price.button,
+    message: 'Asked for the price sheet through the website price-sheet bar.'
+  };
+  var laterStart = Date.now();
+  var laterClosedAt = 0;
+  var laterTicking = false;
+
+  /* Other scripts on the page (the price calculator) can add an offer with
+     its own wording and message, then open it with data-cta="<key>". */
+  window.cpopOffer = function (key, offer) {
+    if (key && offer && offer.message) OFFERS[key] = offer;
+  };
+
+  function laterDone() {
+    try { return window.sessionStorage.getItem(LATER_KEY) === '1'; } catch (e) { return true; }
+  }
+
+  function markLater() {
+    try { window.sessionStorage.setItem(LATER_KEY, '1'); } catch (e) { /* private mode */ }
+  }
+
+  function laterReady() {
+    if (sent() || laterDone()) return false;
+    if (CONTACT_PATH.test(window.location.pathname)) return false;
+    if (dialog && dialog.hasAttribute('open')) return false;
+    if (busy()) return false;
+    var now = Date.now();
+    if (now - laterStart < LATER_MIN_MS) return false;
+    if (laterClosedAt && now - laterClosedAt < LATER_AFTER_CLOSE_MS) return false;
+    return true;
+  }
+
+  /* 'close' does not bubble, so listen in the capture phase. */
+  document.addEventListener('close', function (e) {
+    if (dialog && e.target === dialog) laterClosedAt = Date.now();
+  }, true);
+
+  function onLeave(e) {
+    if (e.relatedTarget || e.clientY > 0) return;
+    if (!laterReady()) return;
+    markLater();
+    document.removeEventListener('mouseout', onLeave);
+    window.clearTimeout(timer);
+    if (!dialog) build();
+    open('later');
+  }
+
+  /* The height of the site's own fixed bar at the bottom of the screen, if
+     it has one, so the offer sits above it. */
+  function bottomInset() {
+    var max = 0;
+    var els = document.querySelectorAll('[class*="mobile"], [class*="sticky"], [class*="cta"], [class*="bottom"], [class*="fixed"]');
+    for (var i = 0; i < els.length; i++) {
+      var s = window.getComputedStyle(els[i]);
+      if (s.position !== 'fixed' || s.display === 'none' || s.visibility === 'hidden') continue;
+      var r = els[i].getBoundingClientRect();
+      if (r.height > 0 && r.height < window.innerHeight / 3 && Math.abs(window.innerHeight - r.bottom) < 6) {
+        max = Math.max(max, r.height);
+      }
+    }
+    return max;
+  }
+
+  function showBar() {
+    markLater();
+    var style = document.createElement('style');
+    style.textContent =
+      '.cpop_bar{position:fixed;left:.5rem;right:.5rem;z-index:2147483000;display:flex;align-items:center;gap:.4rem;' +
+        'padding:.45rem .3rem .45rem .9rem;background:#fff;color:#1a1a1a;border-radius:10px;' +
+        'box-shadow:0 10px 30px rgba(0,0,0,.22);font-size:.9rem;line-height:1.3}' +
+      '.cpop_bar_text{flex:1;margin:0}' +
+      '.cpop_bar .cpop_bar_go{flex:none;white-space:nowrap;padding:.5rem .9rem;min-height:44px;font-size:.9rem;line-height:1.2;width:auto}' +
+      '.cpop_bar_x{flex:none;background:none;border:0;font-size:1.4rem;line-height:1;min-width:44px;min-height:44px;' +
+        'cursor:pointer;color:#5c5c5c}';
+    document.head.appendChild(style);
+    var bar = document.createElement('div');
+    bar.className = 'cpop_bar';
+    bar.setAttribute('role', 'region');
+    bar.setAttribute('aria-label', 'Price sheet offer');
+    bar.innerHTML = '<p class="cpop_bar_text"></p>' +
+      '<button type="button" class="cpop_bar_go"></button>' +
+      '<button type="button" class="cpop_bar_x" aria-label="Close">&times;</button>';
+    bar.querySelector('.cpop_bar_text').textContent = 'Get the ' + PROJECT + ' price sheet';
+    var go = bar.querySelector('.cpop_bar_go');
+    go.className = 'cpop_bar_go ' + BUTTON_CLASS;
+    go.textContent = 'Send it';
+    go.addEventListener('click', function () {
+      bar.parentNode.removeChild(bar);
+      window.clearTimeout(timer);
+      if (!dialog) build();
+      open('laterbar');
+    });
+    bar.querySelector('.cpop_bar_x').addEventListener('click', function () {
+      bar.parentNode.removeChild(bar);
+    });
+    bar.style.bottom = (bottomInset() + 8) + 'px';
+    document.body.appendChild(bar);
+  }
+
+  function onScroll() {
+    if (laterTicking) return;
+    laterTicking = true;
+    window.requestAnimationFrame(function () {
+      laterTicking = false;
+      var doc = document.documentElement;
+      var read = (window.pageYOffset + window.innerHeight) / Math.max(doc.scrollHeight, 1);
+      if (read < LATER_SCROLL || !laterReady()) return;
+      window.removeEventListener('scroll', onScroll);
+      showBar();
+    });
+  }
+
+  function laterInit() {
+    if (sent() || laterDone() || CONTACT_PATH.test(window.location.pathname)) return;
+    var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (fine) {
+      document.addEventListener('mouseout', onLeave);
+    } else {
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
+  }
+
+  if (document.readyState === 'complete') {
+    laterInit();
+  } else {
+    window.addEventListener('load', laterInit);
+  }
+
   /* After the page has loaded, so the pop-up costs the page nothing. */
   if (document.readyState === 'complete') {
     init();
