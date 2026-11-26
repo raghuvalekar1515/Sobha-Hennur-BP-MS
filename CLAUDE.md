@@ -49,6 +49,15 @@ PageSpeed on these sites.
   llms.txt, llms-full.txt and site.webmanifest.
 - Missing images come from the same builder's other projects of the same type
   (apartment → apartment, villa → villa); captions may name the project shown.
+- **Image names and alt text carry the project name** (the user's rule from
+  26 November 2026, every microsite). File names start with the project slug
+  and say what the picture shows, plus the project shown when it is another
+  project's: `sobha-hennur-clubhouse-<other-project>.webp` (width variants keep
+  their suffix: `…-480.webp`, `….avif`). Every `<img>` alt contains the
+  project name, at the start where it reads naturally: "Sobha Hennur amenities:
+  a clubhouse among gardens". The og:image file and `og:image:alt` follow the
+  same rule. `node tools/rename-images.mjs mapping.json` renames every
+  variant, rewrites every reference and sets the alt text in one go.
 - Schema markup (JSON-LD) on all pages, plus llms.txt and robots.txt.
   The JSON-LD must show 0 errors and 0 warnings at validator.schema.org.
   `ResidentialComplex` is not a schema.org type: use `ApartmentComplex`
@@ -118,6 +127,8 @@ Worker prints `Project:` and `Source:` lines in Telegram and email.
 Review every page against the rules above:
 - All links work (internal and the sibling-microsite links).
 - All forms submit correctly (`node worker/test.mjs` passes).
+- Every image alt names the project:
+  `grep -oh '<img[^>]*>' site/*.html | grep -vic 'alt="[^"]*Sobha Hennur'` prints 0.
 - RERA: a registered project shows its portal-checked number (and the portal
   address) and nothing else about RERA; an unregistered project has no RERA
   mention at all (`grep -rni rera site/` prints nothing).
